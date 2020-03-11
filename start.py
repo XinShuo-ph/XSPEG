@@ -1,398 +1,13 @@
-
 # coding: utf-8
+import numpy
+from numpy import sin,cos,sqrt
+import numpy as np
+import os
 from scipy.interpolate import interp1d
 from scipy.optimize import fsolve
-import numpy as np
 import scipy
-from numpy import sin,cos,sqrt
+
 #z1就是r，z2就是theta
-
-def metric_KRZ(spin,   d1,   z1,   z2):
-    r = z1;
-    sqr = r*r;
-    cuber = r*sqr;
-    fourthr = sqr*sqr;
-
-    th = z2;
-
-    sinth = sin(th);
-    costh = cos(th);
-    sqsinth = sinth*sinth;
-    sqcosth = costh*costh;
-
-    sqspin = spin*spin;
-    fourthspin = sqspin*sqspin;
-    r0 = 1 + sqrt(1 - sqspin);
-    sqr0 = r0*r0;
-    cuber0 = sqr0*r0;
-    fourthr0 = sqr0*sqr0;
-
-    a20 = (2 * sqspin) / cuber0;
-    a21 = -fourthspin / fourthr0 + 0;
-    e0 = (2 - r0) / r0;
-    k00 = sqspin / sqr0;
-    k21 = fourthspin / fourthr0 - 2 * sqspin / cuber0 - 0;
-    w00 = 2 * spin / sqr0;
-
-    k22 = -sqspin / sqr0;
-    k23 = sqspin / sqr0;
-
-    N2 = (1 - r0 / r)*(1 - e0*r0 / r + (k00 - e0)*sqr0 / sqr + d1*cuber0 / cuber)+(a20*cuber0/cuber+a21*fourthr0/fourthr+k21*cuber0/cuber/(1+k22*(1-r0/r)/(1+k23*(1-r0/r))))*sqcosth;
-    B = 1 + 0 * sqr0 / sqr + 0 * sqr0*sqcosth / sqr;
-    Sigma = 1 + sqspin*sqcosth / sqr;
-    W = (w00*sqr0 / sqr + 0 * cuber0 / cuber + 0 * cuber0*sqcosth / cuber) / Sigma;
-    K2 = 1 + spin*W / r + (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;
-
-
-    mn=np.zeros((4,4))
-    mn[0][0] = -(N2 - W*W*sqsinth) / K2;
-    mn[0][3] = -W*r*sqsinth;
-    mn[1][1] = Sigma*B*B / N2;
-    mn[2][2] = Sigma*sqr;
-    mn[3][0] = mn[0][3];
-    mn[3][3] = K2*sqr*sqsinth;
-
-    return mn
-
-def metric_KRZ_rderivatives_num(  spin,   d1,   z1,   z2):
-
-
-    r = z1;
-    theta = z2;
-    dr = 0.001*r;
-
-
-    mnm=metric_KRZ(spin, d1, r - dr, theta);
-    mnp=metric_KRZ(spin, d1, r + dr, theta);
-    
-    rdmn=np.zeros((4,4))
-    rdmn[0][0] = (mnp[0][0] - mnm[0][0])*0.5 / dr;
-    rdmn[0][3] = (mnp[0][3] - mnm[0][3])*0.5 / dr;
-    rdmn[1][1] = (mnp[1][1] - mnm[1][1])*0.5 / dr;
-    rdmn[2][2] = (mnp[2][2] - mnm[2][2])*0.5 / dr;
-    rdmn[3][0] = rdmn[0][3];
-    rdmn[3][3] = (mnp[3][3] - mnm[3][3])*0.5 / dr;
-
-    return rdmn
- 
-
-def metric_KRZ_thderivatives_num(  spin,   d1,   z1,   z2):
-
-
-    r = z1;
-    theta = z2;
-    dtheta = 0.01;
-
-
-    metric_KRZ(spin, d1, r, theta - dtheta, mnm);
-    metric_KRZ(spin, d1, r, theta + dtheta, mnp);
-    
-    thdmn=np.zeros((4,4))
-    thdmn[0][0] = (mnp[0][0] - mnm[0][0])*0.5 / dtheta;
-    thdmn[0][3] = (mnp[0][3] - mnm[0][3])*0.5 / dtheta;
-    thdmn[1][1] = (mnp[1][1] - mnm[1][1])*0.5 / dtheta;
-    thdmn[2][2] = (mnp[2][2] - mnm[2][2])*0.5 / dtheta;
-    thdmn[3][0] = thdmn[0][3];
-    thdmn[3][3] = (mnp[3][3] - mnm[3][3])*0.5 / dtheta;
-
-    return thdmn
- 
-
-def metric_KRZ_rderivatives(  spin,   d1,   z1,   z2) :
-
-    r = z1;
-    th = z2;
-
-    sqr = r*r;
-    cuber = r*sqr;
-    fourthr = sqr*sqr;
-
-    sinth = sin(th);
-    costh = cos(th);
-    sqsinth = sinth*sinth;
-    sqcosth = costh*costh;
-
-    sqspin = spin*spin;
-    cubespin = sqspin*spin;
-    fourthspin = sqspin*sqspin;
-
-    r0 = 1 + sqrt(1 - sqspin);
-    sqr0 = r0*r0;
-    cuber0 = sqr0*r0;
-    fourthr0 = sqr0*sqr0;
-
-    a20 = (2 * sqspin) / cuber0;
-    a21 = -fourthspin / fourthr0 + 0;
-    e0 = (2 - r0) / r0;
-    k00 = sqspin / sqr0;
-    k21 = fourthspin / fourthr0 - 2 * sqspin / cuber0 - 0;
-    w00 = 2 * spin / sqr0;
-
-    k22 = -sqspin / sqr0;
-    k23 = sqspin / sqr0;
-
-    N2 = (1 - r0 / r)*(1 - e0*r0 / r + (k00 - e0)*sqr0 / sqr + d1*cuber0 / cuber) + (a20*cuber0 / cuber + a21*fourthr0 / fourthr + k21*cuber0 / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))))*sqcosth;
-    B = 1 + 0 * sqr0 / sqr + 0 * sqr0*sqcosth / sqr;
-    Sigma = 1 + sqspin*sqcosth / sqr;
-    W = (w00*sqr0 / sqr + 0 * cuber0 / cuber + 0 * cuber0*sqcosth / cuber) / Sigma;
-    K2 = 1 + spin*W / r + (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;
-    #2018-4-4
-    #the oringinal N2 was wrong, see the correct KRZ metric
-
-    rderN2 = (1 - r0 / r)*((2 - r0) / sqr - (2 * (-e0 + k00)*sqr0) / cuber - (3 * d1*cuber0) / fourthr) +    (r0*(1 - (2 - r0) / r + ((-e0 + k00)*sqr0) / sqr + (d1*cuber0) / cuber)) / sqr    +sqcosth*(-3*a20*cuber0/fourthr-4*a21*fourthr0/fourthr/r-3*k21*cuber0/fourthr/ (   1    +      k22*(1-r0/r)/(1+k23*(1-r0/r))  )-     k21*cuber0/cuber/  (1+  k22*(1-r0/r)/(1+k23*(1-r0/r ))  ) / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))  )  *  ( k22*r0/sqr/(1+  k23*(1-r0/r)  ) - k22*(1-r0/r) / (1 + k23* (1 - r0 / r)) / (1 + k23* (1 - r0 / r)) *k23*r0/sqr  )    )
-    #2018-4-4 modified with the correct metric expression
-
-    '''+
-    ((-3 * (-0 + fourthspin / fourthr0)*cuber0) / fourthr - (4 * a21*fourthr0) / np.power(r, 5))*sqcosth''';
-    rderB = (-2 * 0 * sqr0) / cuber - (2 * 0 * sqr0*sqcosth) / cuber;
-    rderSigma = (-2 * sqcosth*sqspin) / cuber;
-    rderW = (2 * sqcosth*((0 * np.power(r0, 3)) / np.power(r, 3) + (2 * spin) / np.power(r, 2) + (0 * np.power(r0, 3)*sqcosth) / np.power(r, 3))*sqspin) /    (np.power(r, 3)*np.power(1 + (sqcosth*sqspin) / np.power(r, 2), 2)) +    ((-3 * 0 * np.power(r0, 3)) / np.power(r, 4) - (4 * spin) / np.power(r, 3) - (3 * 0 * np.power(r0, 3)*sqcosth) / np.power(r, 4)) /    (1 + (sqcosth*sqspin) / np.power(r, 2));
-    '''	  rderK2 = (2 * cubespin*sqcosth*((0*cuber0) / cuber + (2 * spin) / sqr + (0*cuber0*sqcosth) / cuber)) /
-    (fourthr*np.power(1 + (sqcosth*sqspin) / sqr, 2)) +
-    (2 * sqcosth*sqspin*((k21*cuber0*sqcosth) / cuber + sqspin / sqr)) /
-    (cuber*np.power(1 + (sqcosth*sqspin) / sqr, 2)) +
-    (spin*((-3 *  0*cuber0) / fourthr - (4 * spin) / cuber - (3 * 0*cuber0*sqcosth) / fourthr)) /
-    (r*(1 + (sqcosth*sqspin) / sqr)) - (spin*
-    ((0*cuber0) / cuber + (2 * spin) / sqr + (0*cuber0*sqcosth) / cuber)) /
-    (sqr*(1 + (sqcosth*sqspin) / sqr)) +
-    ((-3 * k21*cuber0*sqcosth) / fourthr - (2 * sqspin) / cuber) / (1 + (sqcosth*sqspin) / sqr);'''
-    rderK2 = spin / r*rderW - spin*W / sqr - rderSigma / Sigma / Sigma * (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))))    + (-2 * k00 * sqr0 / cuber - 3 * k21 * cuber0 * sqcosth / fourthr / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))    - k21 * sqcosth * cuber0 / cuber * (r0 * k22 / sqr / (1 + k23*(1 - r0 / r)) / (1 + k23*(1 - r0 / r))) / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))) / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;#2017-10-26
-
-    rdmn=np.zeros((4,4))
-    rdmn[0][0] = (-rderN2 + 2 * rderW*sqsinth*W) / K2 - (rderK2*(-N2 + sqsinth*np.power(W, 2))) / np.power(K2, 2);
-
-    rdmn[1][1] = (np.power(B, 2)*rderSigma) / N2 + (2 * B*rderB*Sigma) / N2 - (np.power(B, 2)*rderN2*Sigma) / np.power(N2, 2);
-
-    rdmn[2][2] = np.power(r, 2)*rderSigma + 2 * r*Sigma;
-
-    rdmn[3][3] = 2 * K2*r*sqsinth + np.power(r, 2)*rderK2*sqsinth;
-
-    rdmn[0][3] = -(r*rderW*sqsinth) - sqsinth*W;
-
-    rdmn[3][0] = rdmn[0][3];
-
-    return rdmn
-
-
-def metric_KRZ_thderivatives(  spin,   d1,   z1,   z2) :
-    r = z1;
-    th = z2;
-
-    sqr = r*r;
-    cuber = r*sqr;
-    fourthr = sqr*sqr;
-
-    sinth = sin(th);
-    costh = cos(th); #2018-8-19 之前算cosine居然是开根号。。。不知道以前的raytracing是不是也出过这种问题
-    sqsinth = sinth*sinth;
-    sqcosth = costh*costh;
-
-    sqspin = spin*spin;
-    cubespin = sqspin*spin;
-    fourthspin = sqspin*sqspin;
-
-    r0 = 1 + sqrt(1 - sqspin);
-    sqr0 = r0*r0;
-    cuber0 = sqr0*r0;
-    fourthr0 = sqr0*sqr0;
-
-    a20 = (2 * sqspin) / cuber0;
-    a21 = -fourthspin / fourthr0 + 0;
-    e0 = (2 - r0) / r0;
-    k00 = sqspin / sqr0;
-    k21 = fourthspin / fourthr0 - 2 * sqspin / cuber0 - 0;
-    w00 = 2 * spin / sqr0;
-
-    k22 = -sqspin / sqr0;#2017-10-26
-    k23 = sqspin / sqr0;#2017-10-26
-
-    N2 = (1 - r0 / r)*(1 - e0*r0 / r + (k00 - e0)*sqr0 / sqr + d1*cuber0 / cuber) + (a20*cuber0 / cuber + a21*fourthr0 / fourthr + k21*cuber0 / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))))*sqcosth;
-    B = 1 + 0 * sqr0 / sqr + 0 * sqr0*sqcosth / sqr;
-    Sigma = 1 + sqspin*sqcosth / sqr;
-    W = (w00*sqr0 / sqr + 0 * cuber0 / cuber + 0 * cuber0*sqcosth / cuber) / Sigma;
-    K2 = 1 + spin*W / r + (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;
-    #2018-4-4
-
-    thderN2 = -2 * costh*sinth* (a20*cuber0 / cuber + a21*fourthr0 / fourthr + k21*cuber0 / cuber / (1 + k22* (1 - r0 / r) / (1 + k23 * (1 - r0 / r))));
-    #2018-4-4 modified with the correct metric expression
-    ''' -2 * costh*(((-0 + fourthspin / fourthr0)*cuber0) / cuber + (a21*fourthr0) / fourthr)*sinth ''';
-    thderB = (-2 * costh * 0 * sqr0*sinth) / sqr;
-    thderSigma = (-2 * costh*sinth*sqspin) / sqr;
-    thderW = (2 * costh*sinth*((0 * cuber0) / cuber + (sqcosth * 0 * cuber0) / cuber + (2 * spin) / sqr)*    sqspin) / (sqr*np.power(1+(sqcosth*sqspin)/sqr, 2)) -    (2 * costh * 0 * cuber0*sinth) / (cuber*(1 + (sqcosth*sqspin) / sqr));
-    '''  thderK2 = (2 * costh*cubespin*sinth*((0*cuber0) / cuber + (sqcosth*0*cuber0) / cuber +
-    (2 * spin) / sqr)) / (cuber*np.power(1 + (sqcosth*sqspin) / sqr, 2)) +
-    (2 * costh*sinth*sqspin*((sqcosth*k21*cuber0) / cuber + sqspin / sqr)) /
-    (sqr*np.power(1 + (sqcosth*sqspin) / sqr, 2)) -
-    (2 * costh*k21*cuber0*sinth) / (cuber*(1 + (sqcosth*sqspin) / sqr)) -
-    (2 * costh*0*cuber0*sinth*spin) / (fourthr*(1 + (sqcosth*sqspin) / sqr));'''
-
-    thderK2 = spin / r * thderW - thderSigma / Sigma / Sigma  * (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))))    + (-2* costh * sinth *  k21 * cuber0 / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;#2017-10-26
-
-    thdmn=np.zeros((4,4))
-    
-    thdmn[0][0] = (-thderN2 + 2 * np.power(sinth, 2)*thderW*W + 2 * costh*sinth*np.power(W, 2)) / K2 -    (thderK2*(-N2 + np.power(sinth, 2)*np.power(W, 2))) / np.power(K2, 2);
-    thdmn[1][1] = (2 * B*Sigma*thderB) / N2 - (np.power(B, 2)*Sigma*thderN2) / np.power(N2, 2) + (np.power(B, 2)*thderSigma) / N2;
-    thdmn[2][2] = np.power(r, 2)*thderSigma;
-    thdmn[3][3] = 2 * costh*K2*np.power(r, 2)*sinth + np.power(r, 2)*np.power(sinth, 2)*thderK2;
-    thdmn[0][3] = -(r*np.power(sinth, 2)*thderW) - 2 * costh*r*sinth*W;
-    thdmn[3][0] = thdmn[0][3];
-
-
-    return thdmn
-def Christoffel_KRZ(spin,d1,w1,w2):
-    rDg=metric_KRZ_rderivatives(spin, d1,  w1, w2);
-    thDg=metric_KRZ_thderivatives(spin, d1, w1, w2);
-    Dg=np.zeros((4,4,4))
-    Dg[0][0][1]=rDg[0][0];Dg[0][1][1]=rDg[0][1];Dg[0][2][1]=rDg[0][2];Dg[0][3][1]=rDg[0][3];
-    Dg[1][0][1]=rDg[1][0];Dg[1][1][1]=rDg[1][1];Dg[1][2][1]=rDg[1][2];Dg[1][3][1]=rDg[1][3];
-    Dg[2][0][1]=rDg[2][0];Dg[2][1][1]=rDg[2][1];Dg[2][2][1]=rDg[2][2];Dg[2][3][1]=rDg[2][3];
-    Dg[3][0][1]=rDg[3][0];Dg[3][1][1]=rDg[3][1];Dg[3][2][1]=rDg[3][2];Dg[3][3][1]=rDg[3][3];
-    Dg[0][0][2]=thDg[0][0];Dg[0][1][2]=thDg[0][1];Dg[0][2][2]=thDg[0][2];Dg[0][3][2]=thDg[0][3];
-    Dg[1][0][2]=thDg[1][0];Dg[1][1][2]=thDg[1][1];Dg[1][2][2]=thDg[1][2];Dg[1][3][2]=thDg[1][3];
-    Dg[2][0][2]=thDg[2][0];Dg[2][1][2]=thDg[2][1];Dg[2][2][2]=thDg[2][2];Dg[2][3][2]=thDg[2][3];
-    Dg[3][0][2]=thDg[3][0];Dg[3][1][2]=thDg[3][1];Dg[3][2][2]=thDg[3][2];Dg[3][3][2]=thDg[3][3];
-    g=metric_KRZ(spin, d1, w1, w2)
-    invg=metric_KRZ_inverse(spin, d1, w1, w2)
-    CS=np.zeros((4,4,4))
-    CS[0][0][0] = 0;
-    CS[0][0][1] = (invg[0][0] * Dg[0][0][1] + invg[0][3] * Dg[0][3][1]);
-    CS[0][0][2] = (invg[0][0] * Dg[0][0][2] + invg[0][3] * Dg[0][3][2]);
-    CS[0][0][3] = 0;
-    CS[0][1][0] = CS[0][0][1];
-    CS[0][1][1] = 0;
-    CS[0][1][2] = 0;
-    CS[0][1][3] = (invg[0][0] * Dg[0][3][1] + invg[0][3] * Dg[3][3][1]);
-    CS[0][2][0] = CS[0][0][2];
-    CS[0][2][1] = 0;
-    CS[0][2][2] = 0;
-    CS[0][2][3] = (invg[0][0] * Dg[0][3][2] + invg[0][3] * Dg[3][3][2]);
-    CS[0][3][0] = 0;
-    CS[0][3][1] = CS[0][1][3];
-    CS[0][3][2] = CS[0][2][3];
-    CS[0][3][3] = 0;
-
-    CS[1][0][0] = -invg[1][1] * Dg[0][0][1];
-    CS[1][0][1] = 0;
-    CS[1][0][2] = 0;
-    CS[1][0][3] = -invg[1][1] * Dg[0][3][1];
-    CS[1][1][0] = 0;
-    CS[1][1][1] = invg[1][1] * Dg[1][1][1];
-    CS[1][1][2] = invg[1][1] * Dg[1][1][2];
-    CS[1][1][3] = 0;
-    CS[1][2][0] = 0;
-    CS[1][2][1] = CS[1][1][2];
-    CS[1][2][2] = -invg[1][1] * Dg[2][2][1];
-    CS[1][2][3] = 0;
-    CS[1][3][0] = CS[1][0][3];
-    CS[1][3][1] = 0;
-    CS[1][3][2] = 0;
-    CS[1][3][3] = -invg[1][1] * Dg[3][3][1];
-
-    CS[2][0][0] = -invg[2][2] * Dg[0][0][2];
-    CS[2][0][1] = 0;
-    CS[2][0][2] = 0;
-    CS[2][0][3] = -invg[2][2] * Dg[0][3][2];
-    CS[2][1][0] = 0;
-    CS[2][1][1] = -invg[2][2] * Dg[1][1][2];
-    CS[2][1][2] = invg[2][2] * Dg[2][2][1];
-    CS[2][1][3] = 0;
-    CS[2][2][0] = 0;
-    CS[2][2][1] = CS[2][1][2];
-    CS[2][2][2] = invg[2][2] * Dg[2][2][2];
-    CS[2][2][3] = 0;
-    CS[2][3][0] = CS[2][0][3];
-    CS[2][3][1] = 0;
-    CS[2][3][2] = 0;
-    CS[2][3][3] = -invg[2][2] * Dg[3][3][2];
-
-    CS[3][0][0] = 0;
-    CS[3][0][1] = (invg[3][3] * Dg[0][3][1] + invg[3][0] * Dg[0][0][1]);
-    CS[3][0][2] = (invg[3][3] * Dg[0][3][2] + invg[3][0] * Dg[0][0][2]);
-    CS[3][0][3] = 0;
-    CS[3][1][0] = CS[3][0][1];
-    CS[3][1][1] = 0;
-    CS[3][1][2] = 0;
-    CS[3][1][3] = (invg[3][3] * Dg[3][3][1] + invg[3][0] * Dg[0][3][1]);
-    CS[3][2][0] = CS[3][0][2];
-    CS[3][2][1] = 0;
-    CS[3][2][2] = 0;
-    CS[3][2][3] = (invg[3][3] * Dg[3][3][2] + invg[3][0] * Dg[0][3][2]);
-    CS[3][3][0] = 0;
-    CS[3][3][1] = CS[3][1][3];
-    CS[3][3][2] = CS[3][2][3];
-    CS[3][3][3] = 0;
-    return CS
-
-def metric_KRZ_inverse(  spin,   d1,   z1,   z2) :
-    r = z1;
-    th = z2;
-
-    sqr = r*r;
-    cuber = r*sqr;
-    fourthr = sqr*sqr;
-
-    sinth = sin(th);
-    costh = sqrt(1 - sinth*sinth);
-    sqsinth = sinth*sinth;
-    sqcosth = costh*costh;
-
-    sqspin = spin*spin;
-    cubespin = sqspin*spin;
-    fourthspin = sqspin*sqspin;
-
-    r0 = 1 + sqrt(1 - sqspin);
-    sqr0 = r0*r0;
-    cuber0 = sqr0*r0;
-    fourthr0 = sqr0*sqr0;
-
-    a20 = (2 * sqspin) / cuber0;
-    a21 = -fourthspin / fourthr0 + 0;
-    e0 = (2 - r0) / r0;
-    k00 = sqspin / sqr0;
-    k21 = fourthspin / fourthr0 - 2 * sqspin / cuber0 - 0;
-    w00 = 2 * spin / sqr0;
-
-    k22 = -sqspin / sqr0;#2017-10-26
-    k23 = sqspin / sqr0;#2017-10-26
-    '''
-    N2 = (1 - r0 / r)*(1 - e0*r0 / r + (k00 - e0)*sqr0 / sqr + d1*cuber0 / cuber) + ((k21 + a20)*cuber0 / cuber + a21*fourthr0 / fourthr)*sqcosth;
-    B = 1 + 0 * sqr0 / sqr + 0 * sqr0*sqcosth / sqr;
-    Sigma = 1 + sqspin*sqcosth / sqr;
-    W = (w00*sqr0 / sqr + 0 * cuber0 / cuber + 0 * cuber0*sqcosth / cuber) / Sigma;
-    K2 = 1 + spin*W / r + (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;#2017-10-26
-    '''
-
-    N2 = (1 - r0 / r)*(1 - e0*r0 / r + (k00 - e0)*sqr0 / sqr + d1*cuber0 / cuber) + (a20*cuber0 / cuber + a21*fourthr0 / fourthr + k21*cuber0 / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r))))*sqcosth;
-    B = 1 + 0 * sqr0 / sqr + 0 * sqr0*sqcosth / sqr;
-    Sigma = 1 + sqspin*sqcosth / sqr;
-    W = (w00*sqr0 / sqr + 0 * cuber0 / cuber + 0 * cuber0*sqcosth / cuber) / Sigma;
-    K2 = 1 + spin*W / r + (k00*sqr0 / sqr + k21*cuber0*sqcosth / cuber / (1 + k22*(1 - r0 / r) / (1 + k23*(1 - r0 / r)))) / Sigma;#2017-10-26
-
-
-    invg=np.zeros((4,4))
-    invg[0][0] = -(K2 / N2);
-    invg[1][1] = N2 / (np.power(B, 2)*Sigma);
-    invg[2][2] = 1 / (sqr*Sigma);
-    invg[3][3] = (-np.power(W, 2) + N2 / np.power(sin(th), 2)) / (K2*N2*sqr);
-    invg[0][3] = -(W / (N2*r));
-    invg[3][0] = invg[0][3];
-
-
-    '''  g[4][4], gg;
-    metric_KRZ(spin, d1, z1, z2, g);
-    #metric_KRZ_inverse(spin, d1,  w1, w2, invg);
-    gg = g[0][0] * g[3][3] - g[0][3] * g[0][3];
-    if (std::fabs(gg) > 1e10) :
-    invg[0][0] = g[3][3] / gg;
-    invg[0][3] = -g[0][3] / gg;
-    invg[1][1] = 1 / g[1][1];
-    invg[2][2] = 1 / g[2][2];
-    invg[3][0] = invg[0][3];
-    invg[3][3] = g[0][0] / gg;
-    '''
-    return invg
-
-
 
 def getwave(filename,THETA=np.pi/4,PHI=0,M=1e6,R_pc=5e9,mu=1e-5,usenp=True):
 #读入文件名，和观测角，输出引力波
@@ -1097,3 +712,124 @@ def overlap(wave1,wave2,tottime=-1,dt=5.0):
     if tottime==-1:#默认是能取多少重叠就取多少重叠
         tottime=min(wave2[0][-1],wave1[0][-1])
     return bracket_interp(wave1,wave2,tottime=tottime,dt=dt)/np.sqrt( bracket_interp(wave1,wave1,tottime=tottime,dt=dt) *bracket_interp(wave2,wave2,tottime=tottime,dt=dt) )
+
+
+# XSPEGdir=os.environ['XSPEGLIB']#############################################################################################
+XSPEGdir = './local'
+
+
+class readINCAR:
+    def __init__(self, filename):
+        for line in open(filename):
+            if (line[0:15].strip() != '' and line.strip()[0]!='#'):
+                key = line[0:15].strip()
+                mon = line[16:].strip()
+                setattr(self, key.lower(), eval(mon))
+
+
+#initialization
+
+curdir=os.environ['PWD'];
+try:
+    incarfile=open(curdir+'/INCAR')
+    outcarfile=open(curdir+'/OUTCAR','w')
+    #orbcarfile=open(curdir+'/ORBCAR','w')
+    wavecarfile=open(curdir+'/WAVECAR','w')
+
+
+except:
+    print("INCAR file not found\n")
+    quit()
+
+#default values
+e=0.2
+p=8
+spin=0.8
+M=1e6
+tottime=2e6
+d1=0
+d2=0
+d3=0
+
+#read incar file
+outcarfile.write('------------------------------------------\n')
+outcarfile.write('Reading INCAR file...\n')
+control=readINCAR(curdir+'/INCAR')
+outcarfile.write('INCAR file read.\n\nConfiguration shown below:\n')
+
+e=float(control.ecc)
+p=float(control.p)
+iota=float(control.iota)
+spin=float(control.spin)
+M=float(control.mass)
+tottime=float(control.total_time)
+THETA=float(control.theta)
+PHI=float(control.phi)
+mass_ratio=float(control.mass_ratio)
+R_pc=float(control.r_pc)
+
+if control.metric.lower() != 'kerr':
+    defpar_val=np.array(control.defpar_val)
+    if control.metric.lower() == 'krz' or control.metric.lower() == 'custom':
+        d1=defpar_val[0]
+        d2=defpar_val[1]
+        d3=defpar_val[2]
+
+outcarfile.write("ECC".ljust(16) +'%.10e'%e + '\n')
+outcarfile.write("P".ljust(16) +'%.10e'%p + '\n')
+outcarfile.write("IOTA".ljust(16) +'%.10e'%iota + '\n')
+outcarfile.write("SPIN".ljust(16) +'%.10e'%spin + '\n')
+outcarfile.write("MASS".ljust(16) +'%.10e'%M + '\n')
+outcarfile.write("THETA".ljust(16) +'%.10e'%THETA + '\n')
+outcarfile.write("PHI".ljust(16) +'%.10e'%PHI + '\n')
+outcarfile.write("MASS_RATIO".ljust(16) +'%.10e'%mass_ratio + '\n')
+outcarfile.write("R_PC".ljust(16) +'%.10e'%R_pc + '\n')
+outcarfile.write("METRIC".ljust(16) + control.metric.upper() + '\n')
+
+if control.metric.lower() != 'kerr':
+    valstr='[ '
+    for i in range(len(defpar_val)):
+        valstr=valstr+'%.10e,'%(defpar_val[i])
+    valstr=valstr+' ]'
+    outcarfile.write("DEFPAR_VAL".ljust(16)+ valstr + '\n')
+
+#orbit calculation
+E,Lz,Q=getELQ(e,p,iota,spin)
+outcarfile.write('\n\n')
+outcarfile.write('------------------------------------------\n')
+outcarfile.write('Orbit calculation start...\n')
+#outcarfile.write('------------------------------------------\n')
+print("METRIC: "+control.metric.lower())
+
+
+os.system('cp '+XSPEGdir+'/trace '+curdir+'/a.out')
+os.system('chmod 777 '+ curdir+'/a.out')    
+
+os.system('echo ./a.out %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n'%(M,spin,E,Lz,Q,p/(1-e),tottime,d1,d2,d3,mass_ratio,e,p,iota,R_pc,THETA,PHI))
+
+os.system('./a.out %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n'%(M,spin,E,Lz,Q,p/(1-e),tottime,d1,d2,d3,mass_ratio,e,p,iota,R_pc,THETA,PHI))
+os.system('rm a.out')
+if control.metric.lower() == 'custom':
+    os.system('rm main.cpp')
+    os.system('rm christoffel.cpp')
+    os.system('rm def.h')
+    os.system('rm def.h.gch')    
+
+print('Orbit saved in '+curdir+'/ORBCAR')
+#outcarfile.write('------------------------------------------\n')
+outcarfile.write('Orbit Calculation done. Orbits saved in ORBCAR\n')
+outcarfile.write('------------------------------------------\n')
+
+#print('Computing waveform')
+#waveform calculation
+#outcarfile.write('\n\n')
+#outcarfile.write('------------------------------------------\n')
+#outcarfile.write('Waveform calculation start...\n')
+#myt_sec,mywave=getwave('ORBCAR',THETA=THETA,PHI=PHI,M=M,mu=mass_ratio,R_pc=R_pc) #format: time(s) , h_plus + i * h_cross
+#for ind in range(len(myt_sec)):
+#    wavecarfile.write('%.10e \t%.10e \t%.10e \n'%(myt_sec[ind],np.real(mywave[ind]),np.imag(mywave[ind])))
+
+outcarfile.write('Waveform calculation done. Waveform saved in WAVECAR\n')
+outcarfile.write('------------------------------------------\n')
+#print('Done')
+print('Waveform saved in '+curdir+'/WAVECAR') 
